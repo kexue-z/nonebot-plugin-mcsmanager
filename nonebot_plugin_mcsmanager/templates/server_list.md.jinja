@@ -1,0 +1,16 @@
+{% for server in servers %}
+
+# {{server.config.nickname}}
+
+{% if server.status == 3 %}
+- [x] 正在运行
+{% else %}
+- [ ] 未运行
+{% endif %}
+- 服务器地址 {{server.config.pingConfig.ip}}{{server.config.pingConfig.port}}
+- 服务器类型 {{server.config.type}}
+- 启动指令 {{server.config.startCommand}}
+- 创建日期 {{server.config.createDatetime}}
+- 上次启用 {{{server.config.lastDatetime}}
+- 启动次数 {{server.config.started}}
+{% endfor %}

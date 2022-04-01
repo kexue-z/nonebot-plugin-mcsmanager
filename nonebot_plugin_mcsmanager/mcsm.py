@@ -22,6 +22,7 @@ async def async_get(
             params=params,
             **kwargs,
         )
+        check(res)
         return res.json()
 
 
@@ -83,5 +84,6 @@ class MCSM:
                 "remote_uuid": remote_uuid,
                 "page": 1,
                 "page_size": 10,
+                "instance_name": "",
             },
         )
