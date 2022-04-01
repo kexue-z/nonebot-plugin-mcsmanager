@@ -2,6 +2,7 @@ from pathlib import Path
 
 import jinja2
 from jinja2.environment import Template
+from nonebot.adapters.onebot.v11 import Event, MessageSegment
 
 try:
     from nonebot_plugin_htmlrender import md_to_pic

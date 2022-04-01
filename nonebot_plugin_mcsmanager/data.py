@@ -8,7 +8,7 @@ def add_server(server: str, apikey: str, user_id: int) -> None:
     write_yaml_file(data)
 
 
-def load_init_config(user_id: int) -> dict[str, str]:
+def load_init_config(user_id: int) -> list:
     """
     :说明: `load_init_config`
     > 加载初始化参数
@@ -20,4 +20,5 @@ def load_init_config(user_id: int) -> dict[str, str]:
       - `dict[str, str]`: {"server": "...", "apikey": "..."} 服务器地址 APIKEY
     """
     data = get_yaml_file()
-    return data[user_id]
+    uid = str(user_id)
+    return data[uid]
