@@ -1,69 +1,58 @@
-from typing import List, Union
+from typing import Union
 
-from nonebot import on_shell_command
-from nonebot.params import ShellCommandArgv
-from nonebot.exception import ParserExit
-from nonebot.adapters.onebot.v11 import Event, MessageSegment
+from arclet.alconna import Alconna, Args, Option, Subcommand
+from nonebot_plugin_alconna import At, Match, on_alconna
 
-from .data import load_init_config
-from .mcsm import MCSM
-from .parser import mcsm_parser
-from .text_parser import server_list_to_pic
+alc = Alconna(
+    "mcsm",
+    Subcommand(
+        "status",
+        Option("-a|--all", help_text="所有实例"),
+        alias=["状态"],
+        help_text="获取实例状态，默认为已授权的实例，且已启动",
+    ),
+    Subcommand(
+        "on",
+        Args["server_name", str],
+        alias=["开服", "启动"],
+        help_text="启动实例",
+    ),
+    Subcommand(
+        "off",
+        Args["server_name", str],
+        alias=["关服", "关闭"],
+        help_text="关闭实例",
+    ),
+    Subcommand(
+        "restart",
+        Args["server_name", str],
+        alias=["重启", "重开"],
+        help_text="重启实例",
+    ),
+    Subcommand(
+        "admin",
+        Subcommand(
+            "add_user",
+            Args["user", Union[At, str]],
+            Option("-r|--remote_uuid", Args["remote", str], help_text="远程UUID"),
+            Option("-i|--instance_uuid", Args["instance", str], help_text="实例UUID"),
+            alias=["添加用户"],
+            help_text="添加用户到可管理的实例的权限中",
+        ),
+        Subcommand(
+            "delete_user",
+            Args["user", Union[At, str]],
+            alias=["del_user", "删除用户"],
+            help_text="删除用户权限",
+        ),
+    ),
+    Subcommand(
+        "cmd",
+        Option("-n|--server_name", Args["server_name", str]),
+        Args["command", str],
+        alias=["run", "执行"],
+        help_text="运行实例指令",
+    ),
+)
 
-try:
-    from nonebot_plugin_htmlrender import text_to_pic
-except ImportError:
-    from nonebot.plugin import require
-
-    text_to_pic = require("nonebot_plugin_htmlrender").text_to_pic
-
-mcsm_ctl = on_shell_command("mcsm", parser=mcsm_parser, priority=10)
-
-
-@mcsm_ctl.handle()
-async def _(event: Event, argv: List[str] = ShellCommandArgv()):
-    try:
-        args = mcsm_parser.parse_args(argv)
-        res = await handle_command(args, int(event.get_user_id()))
-        if type(res) is str:
-            await mcsm_ctl.finish(MessageSegment.image(await text_to_pic(str(res))))  # type: ignore
-        elif type(res) is bytes:
-            await mcsm_ctl.finish(MessageSegment.image(res))
-    except ParserExit as e:
-        if e.status == 0:
-            await mcsm_ctl.finish(
-                MessageSegment.image(await text_to_pic(str(e.message)))
-            )
-
-
-async def handle_command(args, user_id: int) -> Union[str, bytes]:
-    mcsm = MCSM(**load_init_config(user_id))
-    # init connfig 是一个list 但mscm只接受一个dict 作为一个mscm服务器
-    # 如果有一个服务器就直接跑
-    # 如果有好多个就开问！然后选一个继续
-    if args.list:
-        """列出服务器"""
-        overview = await mcsm.overview
-        instances = []
-        for uuid in overview["data"]["remote"]["uuid"]:
-            instances.append(await mcsm.remote_services_list(uuid))
-        return await server_list_to_pic(instances)
-    elif args.add:
-        """添加服务器"""
-        pass
-    elif args.user and args.server:
-        """给予指定用户服务器操作的权限"""
-        pass
-    elif args.server:
-        """获取服务器的信息"""
-        pass
-    elif args.server and args.action:
-        """对服务器进行操作"""
-        pass
-    elif args.server and args.command:
-        """在服务器内执行命令"""
-        pass
-    elif args.action:
-        """询问服务器操作"""
-        pass
-    return ""
+# mcsm = on_alconna(command=alc)
