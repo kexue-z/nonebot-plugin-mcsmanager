@@ -8,17 +8,28 @@ add_model(model_path)
 
 
 class PermittedUser(Model):
+    """
+    :说明: `PermittedUser`
+    > 允许用户的表
+    """
+
     id = fields.IntField(primary_key=True)
     user_id = fields.CharField(max_length=30)
     permitted_instantce: fields.ManyToManyRelation["PermittedInstantce"] = (
         fields.ManyToManyField(
-            "default.PermittedInstantce",
+            "models.PermittedInstantce",
+            related_name="permitted_users",
+            through="permitted_user_instantce",
         )
     )
 
 
 class ServerInfo(Model):
     id = fields.IntField(primary_key=True)
+    url = fields.TextField()
+    apikey = fields.TextField()
+
+    creator: fields.ReverseRelation["AdminUser"]
 
 
 class PermittedInstantce(Model):
@@ -26,10 +37,13 @@ class PermittedInstantce(Model):
     instance_uuid = fields.TextField()
     remote_uuid = fields.TextField()
 
+    serverinfo: fields.ManyToManyRelation[ServerInfo]
     permitted_users: fields.ManyToManyRelation[PermittedUser]
 
 
-class UserTable(Model):
+class AdminUser(Model):
     id = fields.IntField(primary_key=True)
     user_id = fields.CharField(max_length=30)
-    # bind_server = fields.ForeignKeyField
+    server: fields.OneToOneRelation[ServerInfo] = fields.OneToOneField(
+        "models.ServerInfo", on_delete=fields.OnDelete.CASCADE, related_name="creator"
+    )

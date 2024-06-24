@@ -8,14 +8,20 @@ require("nonebot_plugin_tortoise_orm")
 from arclet.alconna import Alconna, Args, Option, Subcommand
 from nonebot.adapters import Bot, Event
 from nonebot.log import logger
+from nonebot.matcher import Matcher
+from nonebot.params import ArgPlainText
 from nonebot.permission import SUPERUSER
 from nonebot_plugin_alconna import (
+    AlconnaMatch,
     At,
     CommandMeta,
+    CommandResult,
     Match,
     UniMessage,
     on_alconna,
 )
+
+from .data_source import bind
 
 USAGE = """使用 mcsm bind 绑定面板服务器后，即可使用相关的控制指令
 使用mcsm add_user 可以将开关实例的权限授予相关用户。需要指定实例ID和远程ID
@@ -36,19 +42,19 @@ alc = Alconna(
     ),
     Subcommand(
         "on",
-        Args["server_name", str],
+        Args["server_name?", str],
         alias=["开服", "启动"],
         help_text="启动实例",
     ),
     Subcommand(
         "off",
-        Args["server_name", str],
+        Args["server_name?", str],
         alias=["关服", "关闭"],
         help_text="关闭实例",
     ),
     Subcommand(
         "restart",
-        Args["server_name", str],
+        Args["server_name?", str],
         alias=["重启", "重开"],
         help_text="重启实例",
     ),
@@ -95,7 +101,10 @@ mcsm = on_alconna(command=alc, auto_send_output=True)
 
 
 mcsm_bind = mcsm.dispatch("bind", permission=SUPERUSER)
-"""绑定操作"""
+mcsm_on = mcsm.dispatch("on")
+mcsm_off = mcsm.dispatch("off")
+mcsm_restart = mcsm.dispatch("restart")
+mcsm_admin_user_add = mcsm.dispatch("admin.add_user")
 
 
 @mcsm_bind.handle()
@@ -142,10 +151,7 @@ async def bind_server(
     key: str,
     user: str,
 ):
-    pass
-
-
-mcsm_admin_user_add = mcsm.dispatch("admin.add_user")
+    await bind(url, key, user)
 
 
 @mcsm_admin_user_add.handle()
@@ -181,6 +187,7 @@ async def admin_user_add_h(
     prompt=UniMessage.template("{:At(user, $event.get_user_id())} 请输入用户或 At"),
 )
 async def admin_user_add(
+    event: Event,
     remote: str,
     instance: str,
     user: Union[str, At],
@@ -189,8 +196,40 @@ async def admin_user_add(
 
 
 @mcsm.assign("status")
-async def _(evnet: Event):
+async def _(event: Event):
     pass
 
 
-# TODO: ON OFF RESTART
+@mcsm_on.handle()
+@mcsm_off.handle()
+@mcsm_restart.handle()
+async def call_ser_h(
+    matcher: Matcher,
+    event: Event,
+    res: CommandResult,
+    _server: Match[str] = AlconnaMatch("server_name"),
+):
+    # 如果是 mcsm on abc 则直接运行
+    # 如果是 mcsm on 则打印一个服务器列表供选择，回复数字
+    command_type = res.result.subcommands.keys().__iter__().__next__()
+    user_id = event.get_user_id()
+
+    matcher.set_arg("command_type", command_type)
+
+    if _server.available:
+        server = _server.result
+        matcher.set_arg("server_name", server)
+        matcher.set_arg("id", 0)
+        logger.debug(f"server_name: {_server}")
+    else:
+        # 打印列表，供选择
+        msg = "\n".join([f"{i}" for i in range(10)])
+        await matcher.send(msg)
+
+
+@mcsm_on.got("id", "给出ID")
+@mcsm_off.got("id", "给出ID")
+@mcsm_restart.got("id", "给出ID")
+async def call_ser(matcher: Matcher, id: str = ArgPlainText()):
+    logger.critical("2")
+    await matcher.send(id)
