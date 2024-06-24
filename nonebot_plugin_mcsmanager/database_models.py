@@ -36,8 +36,11 @@ class PermittedInstantce(Model):
     id = fields.IntField(primary_key=True)
     instance_uuid = fields.TextField()
     remote_uuid = fields.TextField()
+    name = fields.CharField(max_length=30, unique=True)
+    server_info: fields.ForeignKeyRelation[ServerInfo] = fields.ForeignKeyField(
+        "models.ServerInfo"
+    )
 
-    serverinfo: fields.ManyToManyRelation[ServerInfo]
     permitted_users: fields.ManyToManyRelation[PermittedUser]
 
 

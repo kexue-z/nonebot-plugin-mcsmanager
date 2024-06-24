@@ -21,7 +21,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from .data_source import bind
+from .data_source import bind, call_instance
 
 USAGE = """使用 mcsm bind 绑定面板服务器后，即可使用相关的控制指令
 使用mcsm add_user 可以将开关实例的权限授予相关用户。需要指定实例ID和远程ID
@@ -41,15 +41,15 @@ alc = Alconna(
         help_text="获取实例状态",
     ),
     Subcommand(
-        "on",
+        "open",
         Args["server_name?", str],
-        alias=["开服", "启动"],
+        alias=["start", "on", "开服", "启动"],
         help_text="启动实例",
     ),
     Subcommand(
-        "off",
+        "stop",
         Args["server_name?", str],
-        alias=["关服", "关闭"],
+        alias=["off", "关服", "关闭"],
         help_text="关闭实例",
     ),
     Subcommand(
@@ -62,6 +62,7 @@ alc = Alconna(
         "admin",
         Subcommand(
             "add_user",
+            Args["name?", str],
             Args["remote?", str],
             Args["instance?", str],
             Args["user?", Union[At, str]],
@@ -171,6 +172,12 @@ async def admin_user_add_h(
 
 
 @mcsm_admin_user_add.got_path(
+    "~name",
+    prompt=UniMessage.template(
+        "{:At(user, $event.get_user_id())} 请输入服务器名称，用于快速操作"
+    ),
+)
+@mcsm_admin_user_add.got_path(
     "~remote",
     prompt=UniMessage.template(
         "{:At(user, $event.get_user_id())} 请输入 mcsm 的 remote_uuid"
@@ -184,7 +191,9 @@ async def admin_user_add_h(
 )
 @mcsm_admin_user_add.got_path(
     "~user",
-    prompt=UniMessage.template("{:At(user, $event.get_user_id())} 请输入用户或 At"),
+    prompt=UniMessage.template(
+        "{:At(user, $event.get_user_id())} 请输入授权的用户或 At"
+    ),
 )
 async def admin_user_add(
     event: Event,
@@ -217,10 +226,13 @@ async def call_ser_h(
     matcher.set_arg("command_type", command_type)
 
     if _server.available:
-        server = _server.result
-        matcher.set_arg("server_name", server)
-        matcher.set_arg("id", 0)
-        logger.debug(f"server_name: {_server}")
+        server_name = _server.result
+
+        await call_instance(
+            action=command_type,
+            user_id=user_id,
+            server_name=server_name,
+        )
     else:
         # 打印列表，供选择
         msg = "\n".join([f"{i}" for i in range(10)])
