@@ -21,7 +21,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from .data_source import bind, call_instance
+from .data_source import bind, call_instance, add_user
 
 USAGE = """使用 mcsm bind 绑定面板服务器后，即可使用相关的控制指令
 使用mcsm add_user 可以将开关实例的权限授予相关用户。需要指定实例ID和远程ID
@@ -102,8 +102,8 @@ mcsm = on_alconna(command=alc, auto_send_output=True)
 
 
 mcsm_bind = mcsm.dispatch("bind", permission=SUPERUSER)
-mcsm_on = mcsm.dispatch("on")
-mcsm_off = mcsm.dispatch("off")
+mcsm_open = mcsm.dispatch("open")
+mcsm_stop = mcsm.dispatch("stop")
 mcsm_restart = mcsm.dispatch("restart")
 mcsm_admin_user_add = mcsm.dispatch("admin.add_user")
 
@@ -152,7 +152,11 @@ async def bind_server(
     key: str,
     user: str,
 ):
-    await bind(url, key, user)
+    _, res = await bind(url, key, user)
+    if res:
+        await mcsm_bind.finish("绑定成功")
+    else:
+        await mcsm_bind.finish("绑定失败")
 
 
 @mcsm_admin_user_add.handle()
@@ -199,9 +203,26 @@ async def admin_user_add(
     event: Event,
     remote: str,
     instance: str,
+    name: str,
     user: Union[str, At],
 ):
-    pass
+    p_user, status = await add_user(
+        user_id=event.get_user_id(),
+        remote=remote,
+        instance=instance,
+        name=name,
+        user_to_add=user,
+    )
+
+    if status and p_user:
+        await mcsm_admin_user_add.finish(
+            f"已添加 {p_user.user_id} 绑定 {name}",
+        )
+
+    else:
+        await mcsm_admin_user_add.finish(
+            "绑定失败",
+        )
 
 
 @mcsm.assign("status")
@@ -209,8 +230,8 @@ async def _(event: Event):
     pass
 
 
-@mcsm_on.handle()
-@mcsm_off.handle()
+@mcsm_open.handle()
+@mcsm_stop.handle()
 @mcsm_restart.handle()
 async def call_ser_h(
     matcher: Matcher,
@@ -223,6 +244,8 @@ async def call_ser_h(
     command_type = res.result.subcommands.keys().__iter__().__next__()
     user_id = event.get_user_id()
 
+    logger.critical(f"user {user_id} call {command_type}")
+
     matcher.set_arg("command_type", command_type)
 
     if _server.available:
@@ -231,17 +254,19 @@ async def call_ser_h(
         await call_instance(
             action=command_type,
             user_id=user_id,
-            server_name=server_name,
+            instance_name=server_name,
         )
+
+        await matcher.finish(f"已经向 {server_name} 发送 {command_type} 指令")
     else:
         # 打印列表，供选择
         msg = "\n".join([f"{i}" for i in range(10)])
         await matcher.send(msg)
 
 
-@mcsm_on.got("id", "给出ID")
-@mcsm_off.got("id", "给出ID")
-@mcsm_restart.got("id", "给出ID")
+@mcsm_open.got("id")
+@mcsm_stop.got("id")
+@mcsm_restart.got("id")
 async def call_ser(matcher: Matcher, id: str = ArgPlainText()):
     logger.critical("2")
     await matcher.send(id)
