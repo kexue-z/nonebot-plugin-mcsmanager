@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 from nonebot import require
 
@@ -11,6 +11,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.params import ArgPlainText
 from nonebot.permission import SUPERUSER
+from nonebot.typing import T_State
 from nonebot_plugin_alconna import (
     AlconnaMatch,
     At,
@@ -21,7 +22,9 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from .data_source import bind, call_instance, add_user
+
+from .data_source import add_user, bind, call_instance, get_instantce_list
+from .models import Instance
 
 USAGE = """使用 mcsm bind 绑定面板服务器后，即可使用相关的控制指令
 使用mcsm add_user 可以将开关实例的权限授予相关用户。需要指定实例ID和远程ID
@@ -236,6 +239,7 @@ async def _(event: Event):
 async def call_ser_h(
     matcher: Matcher,
     event: Event,
+    state: T_State,
     res: CommandResult,
     _server: Match[str] = AlconnaMatch("server_name"),
 ):
@@ -244,13 +248,11 @@ async def call_ser_h(
     command_type = res.result.subcommands.keys().__iter__().__next__()
     user_id = event.get_user_id()
 
-    logger.critical(f"user {user_id} call {command_type}")
-
-    matcher.set_arg("command_type", command_type)
+    state["command_type"] = command_type
 
     if _server.available:
         server_name = _server.result
-
+        # TODO 有点冗余了 要改
         await call_instance(
             action=command_type,
             user_id=user_id,
@@ -260,13 +262,40 @@ async def call_ser_h(
         await matcher.finish(f"已经向 {server_name} 发送 {command_type} 指令")
     else:
         # 打印列表，供选择
-        msg = "\n".join([f"{i}" for i in range(10)])
-        await matcher.send(msg)
+        i_list, _ = await get_instantce_list(user_id)
+        if i_list:
+            msg = "请输入id来选择相应的实例\n"
+            msg += "\n".join([f"{id+1}: {ins.name}" for id, ins in enumerate(i_list)])
+            await matcher.send(msg)
+            state["i_list"] = i_list
+
+        else:
+            await matcher.finish("你没有对此操作的权限")
 
 
 @mcsm_open.got("id")
 @mcsm_stop.got("id")
 @mcsm_restart.got("id")
-async def call_ser(matcher: Matcher, id: str = ArgPlainText()):
-    logger.critical("2")
+async def call_ser(
+    matcher: Matcher,
+    event: Event,
+    state: T_State,
+    id: str = ArgPlainText(),
+):
+    _id = -1
+    try:
+        _id = int(id)
+    except ValueError:
+        await matcher.reject("输入的必须为数字")
+
+    i_list: List[Instance] = state["i_list"]
+
+    ins = i_list[_id - 1]
+
+    logger.debug(f"got id: {id}")
+    await call_instance(
+        action=state["command_type"],
+        user_id=event.get_user_id(),
+        instance_name=ins.name,
+    )
     await matcher.send(id)

@@ -1,26 +1,28 @@
-from httpx import AsyncClient
-from .models.instances import InstanceList
-from enum import Enum
+from .database_models import PermittedUser
+from .models import Instance
+from typing import List
 
 
-class StatusCode(Enum):
-    busy = -1
-    stopped = 0
-    stopping = 1
-    starting = 2
-    running = 3
+async def get_permitteduser_instances_list(user_id: str) -> List[Instance]:
+    _l = await PermittedUser.filter(user_id=user_id).values_list(
+        "id",
+        "permitted_instantce__instance_uuid",
+        "permitted_instantce__remote_uuid",
+        "permitted_instantce__name",
+        "permitted_instantce__server_info__url",
+        "permitted_instantce__server_info__apikey",
+    )
+    instances: List[Instance] = []
 
+    for i in _l:
+        ins = Instance(
+            id=i[0],
+            instance_uuid=i[1],
+            remote_uuid=i[2],
+            name=i[3],
+            url=i[4],
+            apikey=i[5],
+        )
+        instances.append(ins)
 
-async def admin_get_all_instances(
-    url: str, apikey: str, remote_uuid: str, status: StatusCode
-) -> InstanceList:
-    async with AsyncClient() as c:
-        params = {
-            "apikey": apikey,
-            "daemonId": remote_uuid,
-            "page": 1,
-            "page_size": 100,
-            "status": status.value,
-        }
-        res = c.get(f"{url}/api/service/remote_service_instances", params=params)
-        return InstanceList(**res.json())
+    return instances

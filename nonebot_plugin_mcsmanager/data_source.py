@@ -1,9 +1,11 @@
 from .database_models import ServerInfo, PermittedInstantce, PermittedUser, AdminUser
-from typing import Union, Optional, Literal, Tuple
+from typing import Union, Optional, Literal, Tuple, List
 from nonebot_plugin_alconna import At
-from httpx import AsyncClient
 from nonebot.log import logger
-from .models.instance import Model as InstanceResp
+from .mcsm_api import call_instance as mcsm_call_instance
+from .utils import get_permitteduser_instances_list
+
+from .models import Instance
 
 
 async def bind(url: str, apikey: str, user_id: str) -> Tuple[AdminUser, bool]:
@@ -53,16 +55,11 @@ async def add_user(
         return None, False
 
 
-async def get_instantce_list(user_id: str):
-    # 如果是管理员
-    if admin := await AdminUser.get_or_none(user_id=user_id):
-        pass
-    # 普通用户
-    elif user := await PermittedUser.get_or_none(user_id=user_id):
-        pass
-    # 无权限
+async def get_instantce_list(user_id: str) -> Tuple[Optional[List[Instance]], bool]:
+    if await PermittedUser.exists(user_id=user_id):
+        return await get_permitteduser_instances_list(user_id=user_id), True
     else:
-        return
+        return None, False
 
 
 async def call_instance(
@@ -70,50 +67,27 @@ async def call_instance(
     user_id: str,
     instance_name: str,
 ) -> Tuple[str, bool]:
-    _l = await PermittedUser.filter(user_id=user_id).values_list(
-        "id",
-        "permitted_instantce__instance_uuid",
-        "permitted_instantce__remote_uuid",
-        "permitted_instantce__name",
-        "permitted_instantce__server_info__url",
-        "permitted_instantce__server_info__apikey",
-    )
+    instances = await get_permitteduser_instances_list(user_id=user_id)
 
-    _matched: Tuple = ()
-    for i in _l:
-        if instance_name in i:
+    _matched: Optional[Instance] = None
+
+    for i in instances:
+        if i.name == instance_name:
             _matched = i
             break
 
     if not _matched:
         return "404", False
 
-    instance_uuid = _matched[1]
-    remote_uuid = _matched[2]
-    name = _matched[3]
-    server_url = _matched[4]
-    apikey = _matched[5]
-
     logger.debug(
-        f"calliing {server_url} instantce {action} "
-        f"{name}, remote_uuid {remote_uuid}, instance_uuid {instance_uuid}"
+        f"calliing {_matched.url} instantce {action} "
+        f"{_matched.name}, remote_uuid {_matched.remote_uuid}, instance_uuid {_matched.instance_uuid}"
     )
 
-    async with AsyncClient() as c:
-        params = {
-            "uuid": instance_uuid,
-            "daemonId": remote_uuid,
-            "apikey": apikey,
-        }
-        res = await c.get(
-            f"{server_url}/api/protected_instance/{action}",
-            params=params,
-        )
-
-        try:
-            i_resp = InstanceResp(**res.json())
-
-            if i_resp.status == 200:
-                return "ok", True
-        except:  # noqa
-            return "error", False
+    return await mcsm_call_instance(
+        _matched.url,
+        _matched.instance_uuid,
+        _matched.remote_uuid,
+        _matched.apikey,
+        action,
+    )
