@@ -17,7 +17,7 @@ class PermittedUser(Model):
     user_id = fields.CharField(max_length=30)
     permitted_instantce: fields.ManyToManyRelation["PermittedInstantce"] = (
         fields.ManyToManyField(
-            "models.PermittedInstantce",
+            "default.PermittedInstantce",
             related_name="permitted_users",
             through="permitted_user_instantce",
         )
@@ -38,7 +38,7 @@ class PermittedInstantce(Model):
     remote_uuid = fields.TextField()
     name = fields.CharField(max_length=30, unique=True)
     server_info: fields.ForeignKeyRelation[ServerInfo] = fields.ForeignKeyField(
-        "models.ServerInfo"
+        "default.ServerInfo"
     )
 
     permitted_users: fields.ManyToManyRelation[PermittedUser]
@@ -48,5 +48,5 @@ class AdminUser(Model):
     id = fields.IntField(primary_key=True)
     user_id = fields.CharField(max_length=30)
     server: fields.OneToOneRelation[ServerInfo] = fields.OneToOneField(
-        "models.ServerInfo", on_delete=fields.OnDelete.CASCADE, related_name="creator"
+        "default.ServerInfo", on_delete=fields.OnDelete.CASCADE, related_name="creator"
     )

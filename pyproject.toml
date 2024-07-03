@@ -6,7 +6,6 @@ authors = [{ name = "kexue", email = "x@kexue-cloud.cn" }]
 dependencies = [
     "pydantic>=2.7.4",
     "httpx>=0.27.0",
-    "nonebot-plugin-send-anything-anywhere>=0.6.1",
     "nonebot-plugin-alconna>=0.47.0",
     "nonebot-plugin-tortoise-orm>=0.1.2",
 ]
