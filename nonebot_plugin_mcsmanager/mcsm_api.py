@@ -43,14 +43,9 @@ async def call_instance(
             params=params,
         )
 
-        try:
-            i_resp = InstanceResp(**res.json())
+        i_resp = InstanceResp(**res.json())
 
-            if i_resp.status == 200:
-                return "ok", True
-            else:
-                return str(i_resp.data), False
-        except:  # noqa
-            pass
-
-        return "error", False
+        if i_resp.status == 200:
+            return "ok", True
+        else:
+            return str(i_resp.data), False

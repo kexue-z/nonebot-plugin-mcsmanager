@@ -25,14 +25,15 @@ from nonebot_plugin_alconna import (
 
 from .data_source import add_user, bind, call_instance, get_instantce_list
 from .models import Instance
+from .database_models import AdminUser
 
-USAGE = """使用 mcsm bind 绑定面板服务器后，即可使用相关的控制指令
+USAGE = """bot超管使用 mcsm bind 绑定面板服务器后
 使用mcsm add_user 可以将开关实例的权限授予相关用户。需要指定实例ID和远程ID
 """
 
 
-EXAMPLE = """mcsm bind -u "http://127.0.0.1:23333" -k "abc123"
-mcsm admin add_user -r "123abc" -i "123123
+EXAMPLE = """【仅限bot超管】mcsm bind url apikey userid"
+【仅限上方认证的管理】mcsm admin add_user name remote_uuid instance_uuid userid
 """
 
 
@@ -143,6 +144,7 @@ async def bind_server_h(url: Match[str], key: Match[str], user: Match[str]):
     ),
 )
 @mcsm_bind.got_path(
+    # TODO 不知道为什么 接受到AT之后就不会往下运行了
     "~user",
     prompt=UniMessage.template(
         "{:At(user, $event.get_user_id())} 请输入接受绑定的用户 ID"
@@ -162,6 +164,12 @@ async def bind_server(
         await matcher.finish(
             UniMessage.text("绑定失败, 可能已经存在. 或已经被覆盖更新")
         )
+
+
+@mcsm_admin_user_add.handle()
+async def check_is_admin(event: Event, matcher: Matcher):
+    if not await AdminUser.exists(user_id=event.get_user_id()):
+        await matcher.finish("您不在管理员列表中")
 
 
 @mcsm_admin_user_add.handle()
@@ -200,6 +208,7 @@ async def admin_user_add_h(
     ),
 )
 @mcsm_admin_user_add.got_path(
+    # TODO 不知道为什么 接受到AT之后就不会往下运行了
     "~user",
     prompt=UniMessage.template(
         "{:At(user, $event.get_user_id())} 请输入授权的用户或 At"
@@ -235,6 +244,7 @@ async def admin_user_add(
 
 @mcsm.assign("status")
 async def _(event: Event):
+    # TODO
     pass
 
 
