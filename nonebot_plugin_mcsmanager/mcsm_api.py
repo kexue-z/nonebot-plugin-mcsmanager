@@ -1,7 +1,9 @@
-from httpx import AsyncClient
-from .models.instances import Model as InstanceList
 from typing import Literal
-from .models.instance import Model as InstanceResp
+
+from httpx import AsyncClient
+
+from .api_models.instance import Model as InstanceResp
+from .api_models.instances import Model as InstanceList
 
 
 async def admin_get_all_instances(

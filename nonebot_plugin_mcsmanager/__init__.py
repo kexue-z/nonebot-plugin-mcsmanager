@@ -132,8 +132,6 @@ async def bind_server_h(url: Match[str], key: Match[str], user: Match[str]):
     if user.available:
         mcsm_bind.set_path_arg("bind.user", user.result)
 
-    logger.critical(f"{url} {key} {user}")
-
 
 @mcsm_bind.got_path(
     "~url", prompt=UniMessage.template("{:At(user, $event.get_user_id())} 请输入 url")
@@ -151,31 +149,36 @@ async def bind_server_h(url: Match[str], key: Match[str], user: Match[str]):
     ),
 )
 async def bind_server(
+    matcher: Matcher,
     url: str,
     key: str,
     user: str,
 ):
+    logger.debug(f"Adding bind server... {url} for {user}")
     _, res = await bind(url, key, user)
     if res:
-        await mcsm_bind.finish("绑定成功")
+        await matcher.finish(UniMessage.text("绑定成功"))
     else:
-        await mcsm_bind.finish("绑定失败")
+        await matcher.finish(
+            UniMessage.text("绑定失败, 可能已经存在. 或已经被覆盖更新")
+        )
 
 
 @mcsm_admin_user_add.handle()
 async def admin_user_add_h(
+    name: Match[str],
     remote: Match[str],
     instance: Match[str],
     user: Match[Union[At, str]],
 ):
+    if name.available:
+        mcsm_admin_user_add.set_path_arg("admin.add_user.name", name.result)
     if remote.available:
         mcsm_admin_user_add.set_path_arg("admin.add_user.remote", remote.result)
     if instance.available:
         mcsm_admin_user_add.set_path_arg("admin.add_user.instance", instance.result)
     if user.available:
         mcsm_admin_user_add.set_path_arg("admin.add_user.user", user.result)
-
-    pass
 
 
 @mcsm_admin_user_add.got_path(
@@ -203,14 +206,20 @@ async def admin_user_add_h(
     ),
 )
 async def admin_user_add(
+    matcher: Matcher,
     event: Event,
     remote: str,
     instance: str,
     name: str,
     user: Union[str, At],
 ):
+    logger.debug(
+        f"Adding user {user if isinstance(user, str) else user.target}\n"
+        + "name: {name} remote: {remote} instance: {instance}"
+    )
+
     p_user, status = await add_user(
-        user_id=event.get_user_id(),
+        admin_id=event.get_user_id(),
         remote=remote,
         instance=instance,
         name=name,
@@ -218,14 +227,10 @@ async def admin_user_add(
     )
 
     if status and p_user:
-        await mcsm_admin_user_add.finish(
-            f"已添加 {p_user.user_id} 绑定 {name}",
-        )
+        await matcher.finish(UniMessage.text(f"已添加 {p_user.user_id} 绑定 {name}"))
 
     else:
-        await mcsm_admin_user_add.finish(
-            "绑定失败",
-        )
+        await matcher.finish(UniMessage.text("绑定失败"))
 
 
 @mcsm.assign("status")
@@ -282,20 +287,24 @@ async def call_ser(
     state: T_State,
     id: str = ArgPlainText(),
 ):
+    logger.debug(f"got id: {id}")
     _id = -1
     try:
         _id = int(id)
     except ValueError:
-        await matcher.reject("输入的必须为数字")
+        await matcher.reject("输入的必须为数字, 请重新输入")
 
     i_list: List[Instance] = state["i_list"]
 
     ins = i_list[_id - 1]
 
-    logger.debug(f"got id: {id}")
-    await call_instance(
+    res, status = await call_instance(
         action=state["command_type"],
         user_id=event.get_user_id(),
         instance_name=ins.name,
     )
-    await matcher.send(id)
+
+    if status:
+        await matcher.finish(f"指令发送成功，状态 {res}")
+    else:
+        await matcher.finish(f"指令发送失败，状态 {res}")

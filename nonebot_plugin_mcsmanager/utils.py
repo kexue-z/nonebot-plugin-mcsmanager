@@ -1,6 +1,7 @@
+from typing import List
+
 from .database_models import PermittedUser
 from .models import Instance
-from typing import List
 
 
 async def get_permitteduser_instances_list(user_id: str) -> List[Instance]:
