@@ -4,9 +4,10 @@ from httpx import AsyncClient
 
 from .api_models.instance import Model as InstanceResp
 from .api_models.instances import Model as InstanceList
+from .api_models.overview import Model as Overview
 
 
-async def admin_get_all_instances(
+async def get_all_remote_instances(
     url: str,
     apikey: str,
     remote_uuid: str,
@@ -49,3 +50,11 @@ async def call_instance(
             return "ok", True
         else:
             return str(i_resp.data), False
+
+
+async def get_overview_data(url: str, apikey: str) -> Overview:
+    async with AsyncClient() as c:
+        params = {"apikey": apikey}
+        res = await c.get(f"{url}/api/overview", params=params)
+
+        return Overview(**res.json())
