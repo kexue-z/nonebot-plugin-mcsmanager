@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-mcsmanager"
-version = "0.1.0"
+version = "0.2.0"
 description = "mcsm for nonebot2"
 authors = [{ name = "kexue", email = "x@kexue-cloud.cn" }]
 dependencies = [

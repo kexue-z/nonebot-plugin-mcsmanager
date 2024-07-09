@@ -23,7 +23,7 @@ from nonebot_plugin_alconna import (
 from .data_source import bind
 from .mcsm_api import call_instance
 from .models import Instance
-from .utils import check_if_user, get_all_instances
+from .utils import is_user_exists, get_all_instances
 
 USAGE = """私聊使用 mcsm bind 绑定面板服务器后
 即可使用相关指令
@@ -70,7 +70,6 @@ alc = Alconna(
         "bind",
         Args["url?", str],
         Args["key?", str],
-        Args["user?", str],
         help_text="绑定服务器和APIkey，",
     ),
     meta=CommandMeta(
@@ -84,11 +83,11 @@ alc = Alconna(
 mcsm = on_alconna(command=alc, auto_send_output=True)
 
 
-mcsm_status = mcsm.dispatch("status", rule=Rule(check_if_user))
-mcsm_open = mcsm.dispatch("open", rule=Rule(check_if_user))
-mcsm_stop = mcsm.dispatch("stop", rule=Rule(check_if_user))
-mcsm_restart = mcsm.dispatch("restart", rule=Rule(check_if_user))
-mcsm_cmd = mcsm.dispatch("cmd", rule=Rule(check_if_user))
+mcsm_status = mcsm.dispatch("status", permission=is_user_exists)
+mcsm_open = mcsm.dispatch("open", permission=is_user_exists)
+mcsm_stop = mcsm.dispatch("stop", permission=is_user_exists)
+mcsm_restart = mcsm.dispatch("restart", permission=is_user_exists)
+mcsm_cmd = mcsm.dispatch("cmd", permission=is_user_exists)
 mcsm_bind = mcsm.dispatch("bind")
 
 
@@ -110,9 +109,6 @@ async def bind_server_h(url: Match[str], key: Match[str], user: Match[str]):
     if key.available:
         mcsm_bind.set_path_arg("bind.key", key.result)
 
-    if user.available:
-        mcsm_bind.set_path_arg("bind.user", user.result)
-
 
 @mcsm_bind.got_path(
     "~url", prompt=UniMessage.template("{:At(user, $event.get_user_id())} 请输入 url")
@@ -123,21 +119,9 @@ async def bind_server_h(url: Match[str], key: Match[str], user: Match[str]):
         "{:At(user, $event.get_user_id())} 请输入 mcsm 的 apikey"
     ),
 )
-@mcsm_bind.got_path(
-    # TODO 不知道为什么 接受到AT之后就不会往下运行了
-    "~user",
-    prompt=UniMessage.template(
-        "{:At(user, $event.get_user_id())} 请输入接受绑定的用户 ID"
-    ),
-)
-async def bind_server(
-    matcher: Matcher,
-    url: str,
-    key: str,
-    user: str,
-):
-    logger.debug(f"Adding bind server... {url} for {user}")
-    msg, _ = await bind(url, key, user)
+async def bind_server(matcher: Matcher, url: str, key: str, event: Event):
+    logger.debug(f"Adding bind server... {url}")
+    msg, _ = await bind(url, key, user_id=event.get_user_id())
 
     await matcher.finish(UniMessage.text(msg))
 

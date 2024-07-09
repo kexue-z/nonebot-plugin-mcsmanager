@@ -1,5 +1,10 @@
 from typing import List
 
+from nonebot.adapters import Event
+
+# from nonebot.params import EventMessage
+from nonebot_plugin_alconna.uniseg import UniversalMessage
+
 from .api_models.instances import Model as InstanceList
 from .api_models.overview import Model as Overview
 from .database_models import Users
@@ -7,8 +12,8 @@ from .mcsm_api import get_all_remote_instances, get_overview_data
 from .models import Instance, Server
 
 
-async def check_if_user(user_id: str) -> bool:
-    return await Users.exists(user_id=user_id)
+async def is_user_exists(event: Event = UniversalMessage()) -> bool:
+    return await Users.exists(user_id=event.get_user_id())
 
 
 async def get_servers_list(user_id: str) -> List[Server]:
